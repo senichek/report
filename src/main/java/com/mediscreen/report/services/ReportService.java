@@ -5,22 +5,59 @@ import java.time.Period;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import com.mediscreen.report.models.Note;
 import com.mediscreen.report.models.Patient;
+import com.mediscreen.report.models.Risk;
 
 import org.springframework.stereotype.Service;
 
+import lombok.extern.log4j.Log4j2;
+
 @Service
+@Log4j2
 public class ReportService {
 
     private static List<String> triggers = List.of("Hémoglobine A1C", "Microalbumine", "Taille", "Poids", "Fumeur",
-            "Fume", "Anormal", "Cholestérol", "Vertige", "Rechute", "Réaction", "Anticorps");
+            "Anormal", "Cholestérol", "Vertige", "Rechute", "Réaction", "Anticorps");
 
     public String generateReport(Patient patient, List<Note> notes) {
-        return "This is Report";
+        String report = "Not Available";
+        int triggersAmount = calculateTriggers(notes);
+        if (triggersAmount == 0) {
+            report = String.format("Patient: %s %s (age %s) diabetes assessment is: %s",
+                    patient.getFirstName(), patient.getLastName(), calculateAge(patient.getBirthdate()), Risk.NONE);
+        }
+        if (triggersAmount >= 2 && triggersAmount < 6 && calculateAge(patient.getBirthdate()) > 30) {
+            report = String.format("Patient: %s %s (age %s) diabetes assessment is: %s", patient.getFirstName(),
+                    patient.getLastName(), calculateAge(patient.getBirthdate()), Risk.BORDERLINE);
+        }
+        if (patient.getSex().equals("M") && calculateAge(patient.getBirthdate()) < 30 && triggersAmount >= 3) {
+            report = String.format("Patient: %s %s (age %s) diabetes assessment is: %s", patient.getFirstName(),
+                    patient.getLastName(), calculateAge(patient.getBirthdate()), Risk.IN_DANGER);
+        }
+        if (patient.getSex().equals("F") && calculateAge(patient.getBirthdate()) < 30 && triggersAmount >= 4) {
+            report = String.format("Patient: %s %s (age %s) diabetes assessment is: %s", patient.getFirstName(),
+                    patient.getLastName(), calculateAge(patient.getBirthdate()), Risk.IN_DANGER);
+        }
+        if (calculateAge(patient.getBirthdate()) > 30 && triggersAmount >= 6) {
+            report = String.format("Patient: %s %s (age %s) diabetes assessment is: %s", patient.getFirstName(),
+                    patient.getLastName(), calculateAge(patient.getBirthdate()), Risk.IN_DANGER);
+        }
+        if (patient.getSex().equals("M") && calculateAge(patient.getBirthdate()) < 30 && triggersAmount >= 5) {
+            report = String.format("Patient: %s %s (age %s) diabetes assessment is: %s", patient.getFirstName(),
+                    patient.getLastName(), calculateAge(patient.getBirthdate()), Risk.EARLY_ONSET);
+        }
+        if (patient.getSex().equals("F") && calculateAge(patient.getBirthdate()) < 30 && triggersAmount >= 7) {
+            report = String.format("Patient: %s %s (age %s) diabetes assessment is: %s", patient.getFirstName(),
+                    patient.getLastName(), calculateAge(patient.getBirthdate()), Risk.EARLY_ONSET);
+        }
+        if (calculateAge(patient.getBirthdate()) > 30 && triggersAmount >=8) {
+            report = String.format("Patient: %s %s (age %s) diabetes assessment is: %s", patient.getFirstName(),
+                    patient.getLastName(), calculateAge(patient.getBirthdate()), Risk.EARLY_ONSET);
+        }
+        log.info("The report was generated for patientID={}", patient.getId());
+        return report;
     }
 
     public boolean isOlderThan30(Patient patient) {
@@ -44,5 +81,11 @@ public class ReportService {
             });
         });
         return matches.size();
+    }
+
+    public int calculateAge(LocalDate birthdate) {
+        LocalDate now = LocalDate.now();
+        int age = Period.between(birthdate, now).getYears();
+        return age;
     }
 }
